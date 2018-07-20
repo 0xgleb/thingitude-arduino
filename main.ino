@@ -1,38 +1,22 @@
 #include <TheThingsNetwork.h>
 
 const char *appEui = "70B3D57ED0010CCE";
-const char *appKey = "1566D81EA970E674EFF8766BBBAA3705";
+const char *appKey = "4845AF28AF7353751D0D1C6B60FE73E3";
 
 #define loraSerial Serial1
 #define debugSerial Serial
 
 #define freqPlan TTN_FP_EU868
 
-#define loraSpeed 57600
-#define debugSpeed 9600
+const int loraSpeed = 57600;
+const int debugSpeed = 9600;
 
-#define maxMillis 10000
+const int maxMillis = 10000;
+
+const int touchPin = 3;
+const int ledPin = 4;
 
 TheThingsNetwork ttn(loraSerial, debugSerial, freqPlan);
-
-void message(const uint8_t* payload, size_t length, port_t port) {
-  debugSerial.println("-- MESSAGE");
-
-  if(length == 1) {
-    if(!payload[0]) {
-      debugSerial.println("LED: off");
-      digitalWrite(LED_BUILTIN, LOW);
-    } else if(payload[0] == 1) {
-      debugSerial.println("LED: on");
-      digitalWrite(LED_BUILTIN, HIGH);
-    } else {
-      debugSerial.println("Error: invalid message!");
-    }
-    return;
-  }
-
-  debugSerial.println("Error: only accepting messages with length 1!");
-}
 
 void setup() {
   loraSerial.begin(loraSpeed);
@@ -42,23 +26,36 @@ void setup() {
 
   while(!debugSerial && millis() < maxMillis);
 
-  debugSerial.println("-- STATUS");
-  ttn.showStatus();
+  /* debugSerial.println("-- STATUS"); */
+  /* ttn.showStatus(); */
 
   debugSerial.println("-- JOIN");
   ttn.join(appEui, appKey);
+  debugSerial.println("-- JOINED");
 
-  ttn.onMessage(message);
+  pinMode(touchPin, INPUT);
+  pinMode(ledPin, OUTPUT);
 }
 
+int prevSensorValue = 0;
+int sensorValue;
+byte data[1];
+
 void loop() {
-  debugSerial.println("-- LOOP");
+  /* debugSerial.println("-- LOOP"); */
 
-  byte data[1];
+  sensorValue = digitalRead(touchPin);
 
-  data[0] = digitalRead(LED_BUILTIN);
+  if(sensorValue) {
+    digitalWrite(ledPin, HIGH);
+  } else {
+    digitalWrite(ledPin, LOW);
+  }
 
-  ttn.sendBytes(data, sizeof(data));
+  if(prevSensorValue != sensorValue) {
+    data[0] = sensorValue;
+    ttn.sendBytes(data, sizeof(data));
+  }
 
-  delay(10000);
+  prevSensorValue = sensorValue;
 }
